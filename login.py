@@ -1,4 +1,7 @@
+print(">>> LOGIN.PY IS LOADED <<<")
+
 import customtkinter as ctk
+from register import RegisterPage
 
 
 class LoginPage:
@@ -6,7 +9,9 @@ class LoginPage:
     def __init__(self, app):
         self.app = app
 
+        # ------------------------
         # Login Card
+        # ------------------------
         self.frame = ctk.CTkFrame(
             master=app,
             width=450,
@@ -15,7 +20,9 @@ class LoginPage:
         )
         self.frame.place(relx=0.5, rely=0.5, anchor="center")
 
+        # ------------------------
         # Title
+        # ------------------------
         self.title = ctk.CTkLabel(
             self.frame,
             text="Smart Expense Tracker",
@@ -23,7 +30,9 @@ class LoginPage:
         )
         self.title.pack(pady=(30, 10))
 
+        # ------------------------
         # Subtitle
+        # ------------------------
         self.subtitle = ctk.CTkLabel(
             self.frame,
             text="Welcome Back!",
@@ -31,7 +40,9 @@ class LoginPage:
         )
         self.subtitle.pack(pady=(0, 25))
 
-        # Username Entry
+        # ------------------------
+        # Username
+        # ------------------------
         self.username = ctk.CTkEntry(
             self.frame,
             width=320,
@@ -40,7 +51,9 @@ class LoginPage:
         )
         self.username.pack(pady=10)
 
-        # Password Entry
+        # ------------------------
+        # Password
+        # ------------------------
         self.password = ctk.CTkEntry(
             self.frame,
             width=320,
@@ -50,7 +63,9 @@ class LoginPage:
         )
         self.password.pack(pady=10)
 
+        # ------------------------
         # Show Password Checkbox
+        # ------------------------
         self.show_password = ctk.CTkCheckBox(
             self.frame,
             text="Show Password",
@@ -58,7 +73,9 @@ class LoginPage:
         )
         self.show_password.pack(anchor="w", padx=60, pady=(5, 20))
 
+        # ------------------------
         # Login Button
+        # ------------------------
         self.login_btn = ctk.CTkButton(
             self.frame,
             text="Login",
@@ -68,7 +85,9 @@ class LoginPage:
         )
         self.login_btn.pack(pady=10)
 
+        # ------------------------
         # Register Button
+        # ------------------------
         self.register_btn = ctk.CTkButton(
             self.frame,
             text="Register",
@@ -91,16 +110,21 @@ class LoginPage:
         print("Password:", password)
 
     # ------------------------
-    # Register Button
+    # Register Function
     # ------------------------
     def register(self):
-        print("Register Button Clicked")
+        print("STEP 1")
+        self.frame.destroy()
+
+        print("STEP 2")
+        RegisterPage(self.app)
+
+        print("STEP 3")
 
     # ------------------------
     # Show / Hide Password
     # ------------------------
     def toggle_password(self):
-
         if self.show_password.get() == 1:
             self.password.configure(show="")
         else:
