@@ -1,7 +1,8 @@
-print(">>> LOGIN.PY IS LOADED <<<")
-
 import customtkinter as ctk
 from register import RegisterPage
+
+
+print(">>> LOGIN.PY IS LOADED <<<")
 
 
 class LoginPage:
@@ -41,7 +42,7 @@ class LoginPage:
         self.subtitle.pack(pady=(0, 25))
 
         # ------------------------
-        # Username
+        # Username Entry
         # ------------------------
         self.username = ctk.CTkEntry(
             self.frame,
@@ -52,7 +53,7 @@ class LoginPage:
         self.username.pack(pady=10)
 
         # ------------------------
-        # Password
+        # Password Entry
         # ------------------------
         self.password = ctk.CTkEntry(
             self.frame,
@@ -64,7 +65,7 @@ class LoginPage:
         self.password.pack(pady=10)
 
         # ------------------------
-        # Show Password Checkbox
+        # Show Password
         # ------------------------
         self.show_password = ctk.CTkCheckBox(
             self.frame,
@@ -103,14 +104,29 @@ class LoginPage:
     # Login Function
     # ------------------------
     def login(self):
-        username = self.username.get()
+
+        username = self.username.get().strip()
         password = self.password.get()
 
-        print("Username:", username)
-        print("Password:", password)
+        # Check empty fields
+        if not username or not password:
+            print("Please enter username and password.")
+            return
+
+        # Check database
+        user = self.app.db.check_login(username, password)
+
+        if user:
+            print("✅ Login Successful!")
+            print("Welcome,", user[1])
+
+            # Dashboard will be added in next step
+
+        else:
+            print("❌ Invalid Username or Password")
 
     # ------------------------
-    # Register Function
+    # Register Page
     # ------------------------
     def register(self):
         print("STEP 1")
@@ -125,6 +141,7 @@ class LoginPage:
     # Show / Hide Password
     # ------------------------
     def toggle_password(self):
+
         if self.show_password.get() == 1:
             self.password.configure(show="")
         else:

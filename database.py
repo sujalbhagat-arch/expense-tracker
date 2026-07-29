@@ -8,6 +8,9 @@ class Database:
         self.cursor = self.connection.cursor()
         self.create_tables()
 
+    # ------------------------
+    # Create Users Table
+    # ------------------------
     def create_tables(self):
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS users(
@@ -20,7 +23,7 @@ class Database:
         self.connection.commit()
 
     # ------------------------
-    # Add New User
+    # Register New User
     # ------------------------
     def add_user(self, name, username, password):
         self.cursor.execute("""
@@ -29,3 +32,14 @@ class Database:
         """, (name, username, password))
 
         self.connection.commit()
+
+    # ------------------------
+    # Login User
+    # ------------------------
+    def check_login(self, username, password):
+        self.cursor.execute("""
+        SELECT * FROM users
+        WHERE username=? AND password=?
+        """, (username, password))
+
+        return self.cursor.fetchone()
