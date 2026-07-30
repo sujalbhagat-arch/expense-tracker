@@ -133,7 +133,7 @@ class Database:
     def get_recent_expenses(self, user_id):
 
         self.cursor.execute("""
-        SELECT amount, category, expense_date
+        SELECT id, amount, category, expense_date
         FROM expenses
         WHERE user_id=?
         ORDER BY id DESC
@@ -141,3 +141,12 @@ class Database:
         """, (user_id,))
 
         return self.cursor.fetchall()
+    # ------------------------
+    # Delete Expense
+    # ------------------------
+    def delete_expense(self, expense_id):
+        self.cursor.execute("""
+            DELETE FROM expenses
+            WHERE id=?
+        """, (expense_id,))
+        self.connection.commit()

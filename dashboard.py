@@ -184,12 +184,13 @@ class Dashboard:
 
         # Refresh dashboard
         self.refresh_dashboard()
-    # ------------------------
-    # Load Recent Expenses
-    # ------------------------
+  
+        # ------------------------
+        # Load Recent Expenses
+        # ------------------------
     def load_recent_expenses(self):
 
-        # Clear previous widgets
+        # Clear old widgets
         for widget in self.expense_frame.winfo_children():
             widget.destroy()
 
@@ -205,24 +206,40 @@ class Dashboard:
             return
 
         # Header
-        header = ctk.CTkLabel(
-            self.expense_frame,
-            text="Date                Category                Amount",
-            font=("Arial", 16, "bold")
-        )
-        header.pack(anchor="w", padx=20, pady=(10, 5))
+        header = ctk.CTkFrame(self.expense_frame, fg_color="transparent")
+        header.pack(fill="x", padx=10, pady=(5, 10))
 
-        # Expense rows
-        for amount, category, expense_date in expenses:
+        ctk.CTkLabel(header, text="Date", width=120).grid(row=0, column=0)
+        ctk.CTkLabel(header, text="Category", width=150).grid(row=0, column=1)
+        ctk.CTkLabel(header, text="Amount", width=100).grid(row=0, column=2)
+        ctk.CTkLabel(header, text="Action", width=120).grid(row=0, column=3)
 
-            row = ctk.CTkLabel(
-                self.expense_frame,
-                text=f"{expense_date:<18}{category:<20}₹{amount:.2f}",
-                font=("Arial", 15)
+        # Expense Rows
+        for expense in expenses:
+
+            expense_id = expense[0]
+            amount = expense[1]
+            category = expense[2]
+            expense_date = expense[3]
+
+            row = ctk.CTkFrame(self.expense_frame, fg_color="transparent")
+            row.pack(fill="x", padx=10, pady=2)
+
+            ctk.CTkLabel(row, text=expense_date, width=120).grid(row=0, column=0)
+            ctk.CTkLabel(row, text=category, width=150).grid(row=0, column=1)
+            ctk.CTkLabel(row, text=f"₹{amount:.2f}", width=100).grid(row=0, column=2)
+
+            delete_btn = ctk.CTkButton(
+                row,
+                text="🗑 Delete",
+                width=100,
+                fg_color="red",
+                hover_color="#b30000",
+                command=lambda eid=expense_id: self.delete_expense(eid)
             )
-            row.pack(anchor="w", padx=20)
+            delete_btn.grid(row=0, column=3, padx=5)
         # Refresh Dashboard
-    # ------------------------
+        # ------------------------
     def refresh_dashboard(self):
 
         total = self.app.db.get_total_expense(self.user[0])
@@ -232,11 +249,14 @@ class Dashboard:
         self.category_count.configure(text=str(categories))
 
         self.load_recent_expenses()
+    # ------------------------
+    # Delete Expense
+    # ------------------------
+    def delete_expense(self, expense_id):
 
+        self.app.db.delete_expense(expense_id)
 
-
-
-
+        self.refresh_dashboard()
     # ------------------------
     # Logout Function
     # ------------------------
