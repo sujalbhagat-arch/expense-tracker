@@ -89,11 +89,12 @@ class LoginPage:
             )
             return
 
-        # Connects to Database (using login_user)
         user = self.app.db.login_user(username, password)
 
         if user:
             print(f"✅ Login Successful! Welcome, {user[1]}")
+            # Unbind or destroy frame cleanly without killing background DPI loop
+            self.frame.pack_forget()
             self.frame.destroy()
             Dashboard(self.app, user)
         else:

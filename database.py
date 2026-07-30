@@ -60,6 +60,11 @@ class Database:
             (username, password)
         )
         return cursor.fetchone()
+
+    def check_login(self, username, password):
+        """Alias for login_user."""
+        return self.login_user(username, password)
+
     # ==================================================
     # Expense CRUD Operations
     # ==================================================
@@ -96,8 +101,8 @@ class Database:
         )
         return cursor.fetchone()
 
-    # ADD THIS ALIAS METHOD HERE:
     def get_expense(self, expense_id):
+        """Alias for get_expense_by_id."""
         return self.get_expense_by_id(expense_id)
 
     def update_expense(self, expense_id, amount, category, description, date):
@@ -116,6 +121,7 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
         self.conn.commit()
+
     # ==================================================
     # Summary Dashboard Metrics
     # ==================================================
@@ -129,7 +135,6 @@ class Database:
         return result if result else 0.0
 
     def get_month_expense(self, user_id):
-        # Match current month & year in MM-YYYY format (e.g. "07-2026")
         current_month = datetime.now().strftime("%m-%Y")
         cursor = self.conn.cursor()
         cursor.execute(
@@ -169,10 +174,9 @@ class Database:
         return cursor.fetchall()
 
     # ==================================================
-    # Analytics & Chart Data Aggregation
+    # Analytics & Export Methods
     # ==================================================
     def get_category_breakdown(self, user_id):
-        """Returns total spending grouped by category."""
         cursor = self.conn.cursor()
         cursor.execute(
             """
@@ -187,7 +191,6 @@ class Database:
         return cursor.fetchall()
 
     def get_monthly_spending(self, user_id):
-        """Returns total spending grouped by YYYY-MM month."""
         cursor = self.conn.cursor()
         cursor.execute(
             """
@@ -201,3 +204,17 @@ class Database:
         )
         rows = cursor.fetchall()
         return {row[0]: row[1] for row in rows if row[0] is not None}
+
+    def get_all_user_expenses(self, user_id):
+        """Fetch all expenses for export (Date, Category, Description, Amount)."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT date, category, description, amount
+            FROM expenses
+            WHERE user_id = ?
+            ORDER BY id DESC
+            """,
+            (user_id,)
+        )
+        return cursor.fetchall()

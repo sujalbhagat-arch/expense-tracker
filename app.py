@@ -1,25 +1,35 @@
 import customtkinter as ctk
-from login import LoginPage
 from database import Database
+from login import LoginPage
 
-# Theme
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
 
-# Create Database
-db = Database()
+class App(ctk.CTk):
 
-# Create Main Window
-app = ctk.CTk()
-app.title("Smart Expense Tracker")
-app.geometry("1000x600")
-app.minsize(900, 550)
+    def __init__(self):
+        super().__init__()
 
-# Attach database to app
-app.db = db
+        self.title("Smart Expense Tracker")
+        self.geometry("900x650")
 
-# Open Login Page
-LoginPage(app)
+        # Initialize Database
+        self.db = Database()
 
-# Run Application
-app.mainloop()
+        # Handle window close protocol gracefully to prevent background bgerrors
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        # Load Login Page
+        LoginPage(self)
+
+    def on_closing(self):
+        """Safely destroy the window and stop background CustomTkinter loops."""
+        try:
+            self.withdraw()  # Hide window first to prevent rendering updates
+            self.quit()      # Stop Tcl mainloop
+            self.destroy()   # Destroy widgets cleanly
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
