@@ -150,3 +150,36 @@ class Database:
             WHERE id=?
         """, (expense_id,))
         self.connection.commit()
+    # ------------------------
+    # Get Expense By ID
+    # ------------------------
+    def get_expense(self, expense_id):
+
+        self.cursor.execute("""
+            SELECT amount, category, description, expense_date
+            FROM expenses
+            WHERE id=?
+        """, (expense_id,))
+
+        return self.cursor.fetchone()
+    # ------------------------
+    # Update Expense
+    # ------------------------
+    def update_expense(self, expense_id, amount, category, description, expense_date):
+
+        self.cursor.execute("""
+            UPDATE expenses
+            SET amount=?,
+                category=?,
+                description=?,
+                expense_date=?
+            WHERE id=?
+        """, (
+            amount,
+            category,
+            description,
+            expense_date,
+            expense_id
+        ))
+
+        self.connection.commit()

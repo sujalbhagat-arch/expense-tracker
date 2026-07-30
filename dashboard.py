@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from expense import ExpensePage
+from edit_expense import EditExpensePage
 
 
 class Dashboard:
@@ -229,15 +230,23 @@ class Dashboard:
             ctk.CTkLabel(row, text=category, width=150).grid(row=0, column=1)
             ctk.CTkLabel(row, text=f"₹{amount:.2f}", width=100).grid(row=0, column=2)
 
+            edit_btn = ctk.CTkButton(
+               row,
+                text="✏ Edit",
+                width=70,
+                command=lambda eid=expense_id: self.edit_expense(eid)
+            )
+            edit_btn.grid(row=0, column=3, padx=5)
+
             delete_btn = ctk.CTkButton(
                 row,
                 text="🗑 Delete",
-                width=100,
+                width=70,
                 fg_color="red",
                 hover_color="#b30000",
                 command=lambda eid=expense_id: self.delete_expense(eid)
             )
-            delete_btn.grid(row=0, column=3, padx=5)
+            delete_btn.grid(row=0, column=4, padx=5)
         # Refresh Dashboard
         # ------------------------
     def refresh_dashboard(self):
@@ -249,6 +258,16 @@ class Dashboard:
         self.category_count.configure(text=str(categories))
 
         self.load_recent_expenses()
+        # ------------------------
+    # Edit Expense
+    # ------------------------
+    def edit_expense(self, expense_id):
+
+        popup = EditExpensePage(self.app, expense_id)
+
+        self.app.wait_window(popup.window)
+
+        self.refresh_dashboard()
     # ------------------------
     # Delete Expense
     # ------------------------
