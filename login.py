@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from register import RegisterPage
-
+from dashboard import Dashboard
 
 print(">>> LOGIN.PY IS LOADED <<<")
 
@@ -16,7 +16,7 @@ class LoginPage:
         self.frame = ctk.CTkFrame(
             master=app,
             width=450,
-            height=480,
+            height=520,
             corner_radius=20
         )
         self.frame.place(relx=0.5, rely=0.5, anchor="center")
@@ -42,7 +42,7 @@ class LoginPage:
         self.subtitle.pack(pady=(0, 25))
 
         # ------------------------
-        # Username Entry
+        # Username
         # ------------------------
         self.username = ctk.CTkEntry(
             self.frame,
@@ -53,7 +53,7 @@ class LoginPage:
         self.username.pack(pady=10)
 
         # ------------------------
-        # Password Entry
+        # Password
         # ------------------------
         self.password = ctk.CTkEntry(
             self.frame,
@@ -87,6 +87,17 @@ class LoginPage:
         self.login_btn.pack(pady=10)
 
         # ------------------------
+        # Message Label
+        # ------------------------
+        self.message = ctk.CTkLabel(
+            self.frame,
+            text="",
+            font=("Arial", 14),
+            text_color="red"
+        )
+        self.message.pack(pady=(5, 10))
+
+        # ------------------------
         # Register Button
         # ------------------------
         self.register_btn = ctk.CTkButton(
@@ -108,34 +119,46 @@ class LoginPage:
         username = self.username.get().strip()
         password = self.password.get()
 
+        # Clear old message
+        self.message.configure(text="")
+
         # Check empty fields
         if not username or not password:
-            print("Please enter username and password.")
+            self.message.configure(
+                text="Please enter username and password.",
+                text_color="red"
+            )
             return
 
         # Check database
         user = self.app.db.check_login(username, password)
 
         if user:
+
+            self.message.configure(
+                text="Login Successful!",
+                text_color="green"
+            )
+
             print("✅ Login Successful!")
             print("Welcome,", user[1])
 
-            # Dashboard will be added in next step
+            self.frame.destroy()
+            Dashboard(self.app, user)
 
         else:
-            print("❌ Invalid Username or Password")
+
+            self.message.configure(
+                text="Invalid Username or Password",
+                text_color="red"
+            )
 
     # ------------------------
-    # Register Page
+    # Register Function
     # ------------------------
     def register(self):
-        print("STEP 1")
         self.frame.destroy()
-
-        print("STEP 2")
         RegisterPage(self.app)
-
-        print("STEP 3")
 
     # ------------------------
     # Show / Hide Password
