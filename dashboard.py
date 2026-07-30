@@ -67,7 +67,7 @@ class Dashboard:
 
         self.total_amount = ctk.CTkLabel(
             self.total_card,
-            text="₹0.00",
+            text=f"₹{self.app.db.get_total_expense(user[0]):.2f}",
             font=("Arial", 24, "bold"),
             text_color="green"
         )
@@ -117,7 +117,7 @@ class Dashboard:
 
         self.category_count = ctk.CTkLabel(
             self.category_card,
-            text="0",
+            text=str(self.app.db.get_total_categories(user[0])),
             font=("Arial", 24, "bold"),
             text_color="orange"
         )
@@ -146,13 +146,16 @@ class Dashboard:
             font=("Arial", 20, "bold")
         )
         self.recent_title.pack(pady=(20, 10))
+        # Frame to hold expenses
+        self.expense_frame = ctk.CTkFrame(
+                self.frame,
+                width=700,
+                height=180
+            )
+        self.expense_frame.pack(pady=10)
 
-        self.no_expense = ctk.CTkLabel(
-            self.frame,
-            text="No expenses added yet.",
-            font=("Arial", 16)
-        )
-        self.no_expense.pack()
+        # Load expenses
+        self.load_recent_expenses()
 
         # ==================================================
         # Logout Button
@@ -173,7 +176,66 @@ class Dashboard:
     # Open Add Expense Window
     # ------------------------
     def add_expense(self):
-        ExpensePage(self.app, self.user)
+
+        popup = ExpensePage(self.app, self.user)
+
+        # Wait until popup closes
+        self.app.wait_window(popup.window)
+
+        # Refresh dashboard
+        self.refresh_dashboard()
+    # ------------------------
+    # Load Recent Expenses
+    # ------------------------
+    def load_recent_expenses(self):
+
+        # Clear previous widgets
+        for widget in self.expense_frame.winfo_children():
+            widget.destroy()
+
+        expenses = self.app.db.get_recent_expenses(self.user[0])
+
+        if not expenses:
+            label = ctk.CTkLabel(
+                self.expense_frame,
+                text="No expenses added yet.",
+                font=("Arial", 16)
+            )
+            label.pack(pady=20)
+            return
+
+        # Header
+        header = ctk.CTkLabel(
+            self.expense_frame,
+            text="Date                Category                Amount",
+            font=("Arial", 16, "bold")
+        )
+        header.pack(anchor="w", padx=20, pady=(10, 5))
+
+        # Expense rows
+        for amount, category, expense_date in expenses:
+
+            row = ctk.CTkLabel(
+                self.expense_frame,
+                text=f"{expense_date:<18}{category:<20}₹{amount:.2f}",
+                font=("Arial", 15)
+            )
+            row.pack(anchor="w", padx=20)
+        # Refresh Dashboard
+    # ------------------------
+    def refresh_dashboard(self):
+
+        total = self.app.db.get_total_expense(self.user[0])
+        self.total_amount.configure(text=f"₹{total:.2f}")
+
+        categories = self.app.db.get_total_categories(self.user[0])
+        self.category_count.configure(text=str(categories))
+
+        self.load_recent_expenses()
+
+
+
+
 
     # ------------------------
     # Logout Function

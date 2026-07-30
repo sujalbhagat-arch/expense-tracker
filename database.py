@@ -42,6 +42,7 @@ class Database:
     # Add New User
     # ------------------------
     def add_user(self, name, username, password):
+
         self.cursor.execute("""
         INSERT INTO users(name, username, password)
         VALUES (?, ?, ?)
@@ -50,11 +51,13 @@ class Database:
         self.connection.commit()
 
     # ------------------------
-    # Login User
+    # Check Login
     # ------------------------
     def check_login(self, username, password):
+
         self.cursor.execute("""
-        SELECT * FROM users
+        SELECT *
+        FROM users
         WHERE username=? AND password=?
         """, (username, password))
 
@@ -85,7 +88,7 @@ class Database:
         self.connection.commit()
 
     # ------------------------
-    # Get User Expenses
+    # Get All Expenses
     # ------------------------
     def get_expenses(self, user_id):
 
@@ -94,6 +97,47 @@ class Database:
         FROM expenses
         WHERE user_id=?
         ORDER BY expense_date DESC
+        """, (user_id,))
+
+        return self.cursor.fetchall()
+
+    # ------------------------
+    # Get Total Expense
+    # ------------------------
+    def get_total_expense(self, user_id):
+
+        self.cursor.execute("""
+        SELECT IFNULL(SUM(amount), 0)
+        FROM expenses
+        WHERE user_id=?
+        """, (user_id,))
+
+        return self.cursor.fetchone()[0]
+
+    # ------------------------
+    # Get Total Categories
+    # ------------------------
+    def get_total_categories(self, user_id):
+
+        self.cursor.execute("""
+        SELECT COUNT(DISTINCT category)
+        FROM expenses
+        WHERE user_id=?
+        """, (user_id,))
+
+        return self.cursor.fetchone()[0]
+
+    # ------------------------
+    # Get Recent Expenses
+    # ------------------------
+    def get_recent_expenses(self, user_id):
+
+        self.cursor.execute("""
+        SELECT amount, category, expense_date
+        FROM expenses
+        WHERE user_id=?
+        ORDER BY id DESC
+        LIMIT 5
         """, (user_id,))
 
         return self.cursor.fetchall()
