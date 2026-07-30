@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from expense import ExpensePage
 from edit_expense import EditExpensePage
+from charts import AnalyticsPage  # Step 2 Import Added Here
 
 
 class Dashboard:
@@ -247,8 +248,9 @@ class Dashboard:
         else:
             ctk.set_appearance_mode("Dark")
 
+    # Opens the Analytics Window from Step 2
     def open_analytics(self):
-        print("Analytics clicked!")
+        AnalyticsPage(self.app, self.user)
 
     def add_expense(self):
         popup = ExpensePage(self.app, self.user)

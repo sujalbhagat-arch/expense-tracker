@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 
+
 class RegisterPage:
 
     def __init__(self, app):
@@ -111,6 +112,14 @@ class RegisterPage:
             self.app.db.add_user(name, username, password)
             print("User Saved Successfully!")
 
+            # Import here to avoid circular import
+            from login import LoginPage
+
+            # Close register page
+            self.frame.destroy()
+
+            # Open login page
+            LoginPage(self.app)
+
         except Exception as e:
             print("Error:", e)
-        
