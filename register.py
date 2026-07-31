@@ -1,125 +1,95 @@
 import customtkinter as ctk
-
+from tkinter import messagebox
 
 
 class RegisterPage:
 
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, parent):
+        self.app = parent
 
-        # ------------------------
-        # Register Card
-        # ------------------------
-        self.frame = ctk.CTkFrame(
-            master=app,
-            width=450,
-            height=550,
-            corner_radius=20
-        )
-        self.frame.place(relx=0.5, rely=0.5, anchor="center")
+        # Register Frame Container
+        self.frame = ctk.CTkFrame(self.app, fg_color="transparent")
+        self.frame.pack(expand=True, fill="both")
 
-        # ------------------------
+        # Main Box Container
+        main_box = ctk.CTkFrame(self.frame, corner_radius=15, width=420, height=580)
+        main_box.pack(expand=True)
+        main_box.pack_propagate(False)
+
         # Title
-        # ------------------------
-        self.title = ctk.CTkLabel(
-            self.frame,
-            text="Create New Account",
-            font=("Arial", 28, "bold")
+        ctk.CTkLabel(
+            main_box, 
+            text="Create Account 🚀", 
+            font=("Arial", 22, "bold")
+        ).pack(anchor="w", padx=30, pady=(25, 5))
+
+        ctk.CTkLabel(
+            main_box, 
+            text="Join Smart Expense Tracker today", 
+            font=("Arial", 11), 
+            text_color="gray"
+        ).pack(anchor="w", padx=30, pady=(0, 15))
+
+        # Full Name Input
+        self.name_entry = ctk.CTkEntry(main_box, placeholder_text="Full Name", height=40)
+        self.name_entry.pack(fill="x", padx=30, pady=8)
+
+        # Username Input
+        self.username_entry = ctk.CTkEntry(main_box, placeholder_text="Username", height=40)
+        self.username_entry.pack(fill="x", padx=30, pady=8)
+
+        # Password Input
+        self.password_entry = ctk.CTkEntry(main_box, placeholder_text="Password", show="*", height=40)
+        self.password_entry.pack(fill="x", padx=30, pady=8)
+
+        # Confirm Password Input
+        self.confirm_password_entry = ctk.CTkEntry(main_box, placeholder_text="Confirm Password", show="*", height=40)
+        self.confirm_password_entry.pack(fill="x", padx=30, pady=8)
+
+        # Register Button
+        ctk.CTkButton(
+            main_box, 
+            text="Register 👤", 
+            height=40, 
+            font=("Arial", 13, "bold"), 
+            command=self.handle_register
+        ).pack(fill="x", padx=30, pady=(20, 15))
+
+        # Back to Login Link
+        login_link = ctk.CTkButton(
+            main_box, 
+            text="Already have an account? Sign In", 
+            fg_color="transparent", 
+            hover=False, 
+            text_color="#3b82f6", 
+            command=self.open_login
         )
-        self.title.pack(pady=(30, 20))
+        login_link.pack()
 
-        # ------------------------
-        # Full Name
-        # ------------------------
-        self.name = ctk.CTkEntry(
-            self.frame,
-            width=320,
-            height=40,
-            placeholder_text="Full Name"
-        )
-        self.name.pack(pady=10)
+    def handle_register(self):
+        full_name = self.name_entry.get().strip()
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get().strip()
+        confirm_pass = self.confirm_password_entry.get().strip()
 
-        # ------------------------
-        # Username
-        # ------------------------
-        self.username = ctk.CTkEntry(
-            self.frame,
-            width=320,
-            height=40,
-            placeholder_text="Username"
-        )
-        self.username.pack(pady=10)
-
-        # ------------------------
-        # Password
-        # ------------------------
-        self.password = ctk.CTkEntry(
-            self.frame,
-            width=320,
-            height=40,
-            placeholder_text="Password",
-            show="*"
-        )
-        self.password.pack(pady=10)
-
-        # ------------------------
-        # Confirm Password
-        # ------------------------
-        self.confirm = ctk.CTkEntry(
-            self.frame,
-            width=320,
-            height=40,
-            placeholder_text="Confirm Password",
-            show="*"
-        )
-        self.confirm.pack(pady=10)
-
-        # ------------------------
-        # Create Account Button
-        # ------------------------
-        self.register_btn = ctk.CTkButton(
-            self.frame,
-            text="Create Account",
-            width=320,
-            height=40,
-            command=self.create_account
-        )
-        self.register_btn.pack(pady=20)
-
-    # ------------------------
-    # Create Account Function
-    # ------------------------
-    def create_account(self):
-
-        # Get user input
-        name = self.name.get().strip()
-        username = self.username.get().strip()
-        password = self.password.get()
-        confirm = self.confirm.get()
-
-        # Check if any field is empty
-        if not name or not username or not password or not confirm:
-            print("Please fill all fields.")
+        if not full_name or not username or not password:
+            messagebox.showwarning("Warning", "All fields are required!")
             return
 
-        # Check if passwords match
-        if password != confirm:
-            print("Passwords do not match.")
+        if password != confirm_pass:
+            messagebox.showerror("Error", "Passwords do not match!")
             return
 
-        # Save user to database
-        try:
-            self.app.db.add_user(name, username, password)
-            print("User Saved Successfully!")
+        # Pass full_name as well so database handles it safely
+        success = self.app.db.add_user(username, password, full_name)
 
-            # Import here to avoid circular import
-            from login import LoginPage
+        if success:
+            messagebox.showinfo("Success", "Account created successfully! Please Sign In.")
+            self.open_login()
+        else:
+            messagebox.showerror("Error", "Username already exists. Please pick another.")
 
-            # Close register page
-            self.frame.destroy()
-
-            # Open login page
-            LoginPage(self.app)
-
-        except Exception as e:
-            print("Error:", e)
+    def open_login(self):
+        from login import LoginPage
+        self.frame.destroy()
+        LoginPage(self.app)

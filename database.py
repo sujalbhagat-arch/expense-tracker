@@ -47,36 +47,73 @@ class Database:
 
         self.conn.commit()
 
-        # Schema Migrations (Safely add missing columns for existing DB files)
+        # Schema Migrations (Ensures older DB files seamlessly get new columns)
         self._run_migrations()
 
     def _run_migrations(self):
+        # Migrate profile_pic column
         try:
             self.cursor.execute("ALTER TABLE users ADD COLUMN profile_pic TEXT")
             self.conn.commit()
         except sqlite3.OperationalError:
-            pass  # Column already exists
+            pass  # Already exists
 
+        # Migrate payment_method column
         try:
             self.cursor.execute("ALTER TABLE expenses ADD COLUMN payment_method TEXT DEFAULT 'UPI'")
             self.conn.commit()
         except sqlite3.OperationalError:
-            pass  # Column already exists
+            pass  # Already exists
+
+        # Check and fix category_budgets table if limit_amount is missing
+        try:
+            self.cursor.execute("SELECT limit_amount FROM category_budgets LIMIT 1")
+        except sqlite3.OperationalError:
+            self.cursor.execute("DROP TABLE IF EXISTS category_budgets")
+            self.cursor.execute('''
+                CREATE TABLE category_budgets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    category TEXT,
+                    limit_amount REAL,
+                    UNIQUE(user_id, category)
+                )
+            ''')
+            self.conn.commit()
 
     # ==========================================
     # USER & PROFILE OPERATIONS
     # ==========================================
-    def register_user(self, username, password):
+    def register_user(self, username, password, *args, **kwargs):
+        """
+        Registers a new user into the DB.
+        *args and **kwargs safely handle extra parameters (e.g. confirm_password, email)
+        passed by any register window without breaking.
+        """
         try:
-            self.cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+            self.cursor.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)", 
+                (username, password)
+            )
             self.conn.commit()
             return True
         except sqlite3.IntegrityError:
-            return False
+            return False  # Username already exists
+
+    def add_user(self, username, password, *args, **kwargs):
+        """Alias for register_user to support older/alternative registration logic."""
+        return self.register_user(username, password, *args, **kwargs)
 
     def login_user(self, username, password):
-        self.cursor.execute("SELECT id, username FROM users WHERE username = ? AND password = ?", (username, password))
+        self.cursor.execute(
+            "SELECT id, username FROM users WHERE username = ? AND password = ?", 
+            (username, password)
+        )
         return self.cursor.fetchone()
+
+    def validate_user(self, username, password):
+        """Alias for login_user authentication."""
+        return self.login_user(username, password)
 
     def update_user_profile_pic(self, user_id, image_path):
         self.cursor.execute("UPDATE users SET profile_pic = ? WHERE id = ?", (image_path, user_id))
@@ -108,9 +145,12 @@ class Database:
         self.conn.commit()
 
     def get_category_budgets(self, user_id):
-        self.cursor.execute("SELECT category, limit_amount FROM category_budgets WHERE user_id = ?", (user_id,))
-        rows = self.cursor.fetchall()
-        return {row[0]: row[1] for row in rows}
+        try:
+            self.cursor.execute("SELECT category, limit_amount FROM category_budgets WHERE user_id = ?", (user_id,))
+            rows = self.cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+        except sqlite3.OperationalError:
+            return {}
 
     def get_category_month_spending(self, user_id, category):
         self.cursor.execute('''

@@ -1,175 +1,115 @@
 import customtkinter as ctk
 from tkinter import messagebox
+from dashboard import Dashboard
 
 
-class LoginPage(ctk.CTkFrame):
+class LoginPage:
 
-    def __init__(self, app):
-        super().__init__(app, fg_color="transparent")
-        self.app = app
+    def __init__(self, parent):
+        self.app = parent
 
-        self.pack(fill="both", expand=True, padx=20, pady=20)
+        # Login Frame Container
+        self.frame = ctk.CTkFrame(self.app, fg_color="transparent")
+        self.frame.pack(expand=True, fill="both")
 
-        # Center Container Card
-        self.container = ctk.CTkFrame(self, fg_color="#212529", corner_radius=20)
-        self.container.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.88, relheight=0.85)
+        # Split Layout Container
+        main_box = ctk.CTkFrame(self.frame, corner_radius=15, width=700, height=450)
+        main_box.pack(expand=True)
+        main_box.pack_propagate(False)
 
-        # Configure 2-Column Grid inside Container
-        self.container.grid_columnconfigure(0, weight=1)
-        self.container.grid_columnconfigure(1, weight=1)
-        self.container.grid_rowconfigure(0, weight=1)
+        # Left Banner Panel
+        left_panel = ctk.CTkFrame(main_box, fg_color="#1e293b", corner_radius=15, width=320)
+        left_panel.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        # ==========================================
-        # LEFT PANEL: BRANDING & FEATURES
-        # ==========================================
-        self.left_frame = ctk.CTkFrame(
-            self.container,
-            fg_color=("#1f2937", "#1e293b"),
-            corner_radius=16
-        )
-        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
-
-        # App Logo & Title
         ctk.CTkLabel(
-            self.left_frame,
-            text="💰 Smart Expense Tracker",
-            font=("Arial", 22, "bold"),
+            left_panel, 
+            text="💰 Smart Expense Tracker", 
+            font=("Arial", 18, "bold"), 
             text_color="#60a5fa"
-        ).pack(anchor="w", padx=25, pady=(35, 5))
+        ).pack(anchor="w", padx=20, pady=(30, 5))
 
         ctk.CTkLabel(
-            self.left_frame,
-            text="Take control of your personal finances effortlessly.",
-            font=("Arial", 12),
-            text_color="#94a3b8"
-        ).pack(anchor="w", padx=25, pady=(0, 25))
+            left_panel, 
+            text="Take control of your personal finances effortlessly.", 
+            font=("Arial", 11), 
+            text_color="#94a3b8", 
+            wraplength=260, 
+            justify="left"
+        ).pack(anchor="w", padx=20, pady=(0, 20))
 
-        # Feature Highlights
+        # Features List
         features = [
             ("📊 Visual Analytics", "Interactive pie charts & monthly trends."),
             ("🎯 Budget Tracking", "Set category limits & stay notified."),
             ("💳 Payment Modes", "Track UPI, Cash, Cards & Transfers easily.")
         ]
-
         for title, desc in features:
-            f_box = ctk.CTkFrame(self.left_frame, fg_color="transparent")
-            f_box.pack(fill="x", padx=25, pady=8)
+            f_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
+            f_frame.pack(fill="x", padx=20, pady=10)
+            ctk.CTkLabel(f_frame, text=title, font=("Arial", 12, "bold"), text_color="#f8fafc").pack(anchor="w")
+            ctk.CTkLabel(f_frame, text=desc, font=("Arial", 10), text_color="#64748b").pack(anchor="w")
 
-            ctk.CTkLabel(
-                f_box,
-                text=title,
-                font=("Arial", 14, "bold"),
-                text_color="#e2e8f0"
-            ).pack(anchor="w")
+        # Right Login Form Panel
+        right_panel = ctk.CTkFrame(main_box, fg_color="transparent")
+        right_panel.pack(side="right", fill="both", expand=True, padx=20, pady=20)
 
-            ctk.CTkLabel(
-                f_box,
-                text=desc,
-                font=("Arial", 11),
-                text_color="#64748b"
-            ).pack(anchor="w")
-
-        # ==========================================
-        # RIGHT PANEL: LOGIN FORM
-        # ==========================================
-        self.right_frame = ctk.CTkFrame(self.container, fg_color="transparent")
-        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=25, pady=25)
-
-        # Form Header
-        ctk.CTkLabel(
-            self.right_frame,
-            text="Welcome Back!",
-            font=("Arial", 24, "bold"),
-            text_color="#ffffff"
-        ).pack(anchor="w", pady=(20, 5))
-
-        ctk.CTkLabel(
-            self.right_frame,
-            text="Please sign in to continue to your dashboard.",
-            font=("Arial", 12),
-            text_color="#94a3b8"
-        ).pack(anchor="w", pady=(0, 25))
+        ctk.CTkLabel(right_panel, text="Welcome Back!", font=("Arial", 22, "bold")).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(right_panel, text="Please sign in to continue to your dashboard", font=("Arial", 11), text_color="gray").pack(anchor="w", pady=(0, 20))
 
         # Username Input
-        ctk.CTkLabel(
-            self.right_frame,
-            text="Username",
-            font=("Arial", 12, "bold"),
-            text_color="#cbd5e1"
-        ).pack(anchor="w", pady=(0, 5))
-
-        self.username_entry = ctk.CTkEntry(
-            self.right_frame,
-            placeholder_text="Enter your username",
-            height=42,
-            border_width=1,
-            corner_radius=10,
-            font=("Arial", 13)
-        )
-        self.username_entry.pack(fill="x", pady=(0, 15))
+        self.username_entry = ctk.CTkEntry(right_panel, placeholder_text="Username", height=40)
+        self.username_entry.pack(fill="x", pady=10)
 
         # Password Input
-        ctk.CTkLabel(
-            self.right_frame,
-            text="Password",
-            font=("Arial", 12, "bold"),
-            text_color="#cbd5e1"
-        ).pack(anchor="w", pady=(0, 5))
+        self.password_entry = ctk.CTkEntry(right_panel, placeholder_text="Password", show="*", height=40)
+        self.password_entry.pack(fill="x", pady=10)
 
-        self.password_entry = ctk.CTkEntry(
-            self.right_frame,
-            placeholder_text="Enter your password",
-            show="•",
-            height=42,
-            border_width=1,
-            corner_radius=10,
-            font=("Arial", 13)
+        # Sign In Button
+        ctk.CTkButton(
+            right_panel, 
+            text="Sign In 🚀", 
+            height=40, 
+            font=("Arial", 13, "bold"), 
+            command=self.handle_login
+        ).pack(fill="x", pady=15)
+
+        # Register Switch Link
+        register_link = ctk.CTkButton(
+            right_panel, 
+            text="Don't have an account? Register here", 
+            fg_color="transparent", 
+            hover=False, 
+            text_color="#3b82f6", 
+            command=self.open_register
         )
-        self.password_entry.pack(fill="x", pady=(0, 25))
+        register_link.pack()
 
-        # Login Button
-        self.login_btn = ctk.CTkButton(
-            self.right_frame,
-            text="Sign In 🚀",
-            font=("Arial", 14, "bold"),
-            height=45,
-            corner_radius=10,
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
-            command=self.login_action
-        )
-        self.login_btn.pack(fill="x", pady=(0, 15))
-
-        # Register Link
-        self.register_link = ctk.CTkButton(
-            self.right_frame,
-            text="Don't have an account? Register here",
-            font=("Arial", 12, "underline"),
-            fg_color="transparent",
-            text_color="#38bdf8",
-            hover_color=("#1e293b", "#334155"),
-            anchor="center",
-            command=lambda: self.app.show_register() if hasattr(self.app, "show_register") else self.open_register_fallback()
-        )
-        self.register_link.pack(fill="x")
-
-    def open_register_fallback(self):
-        from register import RegisterPage
-        self.destroy()
-        RegisterPage(self.app)
-
-    def login_action(self):
+    def handle_login(self):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
 
         if not username or not password:
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showwarning("Warning", "Please enter both username and password!")
             return
 
+        # Query Database
         user = self.app.db.login_user(username, password)
+
+        # Fallback check (case-insensitive username)
+        if not user:
+            self.app.db.cursor.execute(
+                "SELECT id, username FROM users WHERE LOWER(username) = LOWER(?) AND password = ?", 
+                (username, password)
+            )
+            user = self.app.db.cursor.fetchone()
+
         if user:
-            from dashboard import Dashboard
-            self.destroy()
+            self.frame.destroy()
             Dashboard(self.app, user)
         else:
             messagebox.showerror("Error", "Invalid username or password.")
+
+    def open_register(self):
+        from register import RegisterPage
+        self.frame.destroy()
+        RegisterPage(self.app)

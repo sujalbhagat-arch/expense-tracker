@@ -9,23 +9,23 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Smart Expense Tracker")
-        self.geometry("900x650")
+        self.geometry("900x600")
+        ctk.set_appearance_mode("Dark")
 
-        # Initialize Database
-        self.db = Database()
+        # Single shared database instance
+        self.db = Database("expense_tracker.db")
 
-        # Handle window close protocol gracefully to prevent background bgerrors
+        # Window Close Handler
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Load Login Page
         LoginPage(self)
 
     def on_closing(self):
-        """Safely destroy the window and stop background CustomTkinter loops."""
         try:
-            self.withdraw()  # Hide window first to prevent rendering updates
-            self.quit()      # Stop Tcl mainloop
-            self.destroy()   # Destroy widgets cleanly
+            self.withdraw()
+            self.quit()
+            self.destroy()
         except Exception:
             pass
 
