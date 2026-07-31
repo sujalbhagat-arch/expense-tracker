@@ -11,16 +11,23 @@ class Database:
     def create_tables(self):
         cursor = self.conn.cursor()
 
-        # Users table
+        # Users table with optional budget column
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                budget REAL DEFAULT 0.0
             )
             """
         )
+
+        # Ensure existing databases get the budget column seamlessly
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN budget REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
         # Expenses table
         cursor.execute(
@@ -39,13 +46,13 @@ class Database:
         self.conn.commit()
 
     # ==================================================
-    # User Authentication Methods
+    # User Authentication & Budget Operations
     # ==================================================
     def register_user(self, username, password):
         try:
             cursor = self.conn.cursor()
             cursor.execute(
-                "INSERT INTO users (username, password) VALUES (?, ?)",
+                "INSERT INTO users (username, password, budget) VALUES (?, ?, 0.0)",
                 (username, password)
             )
             self.conn.commit()
@@ -61,9 +68,21 @@ class Database:
         )
         return cursor.fetchone()
 
-    def check_login(self, username, password):
-        """Alias for login_user."""
-        return self.login_user(username, password)
+    def set_user_budget(self, user_id, budget_amount):
+        """Set or update the monthly budget limit for a user."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "UPDATE users SET budget = ? WHERE id = ?",
+            (budget_amount, user_id)
+        )
+        self.conn.commit()
+
+    def get_user_budget(self, user_id):
+        """Fetch current user's monthly budget limit."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT budget FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+        return result[0] if result and result[0] is not None else 0.0
 
     # ==================================================
     # Expense CRUD Operations
@@ -102,7 +121,6 @@ class Database:
         return cursor.fetchone()
 
     def get_expense(self, expense_id):
-        """Alias for get_expense_by_id."""
         return self.get_expense_by_id(expense_id)
 
     def update_expense(self, expense_id, amount, category, description, date):
@@ -206,7 +224,6 @@ class Database:
         return {row[0]: row[1] for row in rows if row[0] is not None}
 
     def get_all_user_expenses(self, user_id):
-        """Fetch all expenses for export (Date, Category, Description, Amount)."""
         cursor = self.conn.cursor()
         cursor.execute(
             """
