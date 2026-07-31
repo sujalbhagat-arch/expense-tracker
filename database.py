@@ -1,273 +1,211 @@
 import sqlite3
-from datetime import datetime, timedelta
 
 
 class Database:
 
-    def __init__(self, db_name="expense_tracker.db"):
-        self.conn = sqlite3.connect(db_name)
+    def __init__(self, db_file="expense_tracker.db"):
+        self.conn = sqlite3.connect(db_file)
+        self.cursor = self.conn.cursor()
         self.create_tables()
 
     def create_tables(self):
-        cursor = self.conn.cursor()
-
-        # Users table
-        cursor.execute(
-            """
+        # Users Table
+        self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                budget REAL DEFAULT 0.0
+                budget REAL DEFAULT 0.0,
+                profile_pic TEXT
             )
-            """
-        )
+        ''')
 
-        # Expenses table
-        cursor.execute(
-            """
+        # Expenses Table
+        self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS expenses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
+                user_id INTEGER,
+                amount REAL,
+                category TEXT,
                 description TEXT,
-                date TEXT NOT NULL,
+                date TEXT,
                 payment_method TEXT DEFAULT 'UPI',
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                FOREIGN KEY (user_id) REFERENCES users(id)
             )
-            """
-        )
-
-        # Ensure payment_method column exists in older DB files
-        try:
-            cursor.execute("ALTER TABLE expenses ADD COLUMN payment_method TEXT DEFAULT 'UPI'")
-        except sqlite3.OperationalError:
-            pass
+        ''')
 
         # Category Budgets Table
-        cursor.execute(
-            """
+        self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS category_budgets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                category TEXT NOT NULL,
-                budget_limit REAL NOT NULL,
-                UNIQUE(user_id, category),
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                user_id INTEGER,
+                category TEXT,
+                limit_amount REAL,
+                UNIQUE(user_id, category)
             )
-            """
-        )
+        ''')
 
         self.conn.commit()
 
-    # ==================================================
-    # User Authentication & Overall Budget
-    # ==================================================
+        # Schema Migrations (Safely add missing columns for existing DB files)
+        self._run_migrations()
+
+    def _run_migrations(self):
+        try:
+            self.cursor.execute("ALTER TABLE users ADD COLUMN profile_pic TEXT")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+        try:
+            self.cursor.execute("ALTER TABLE expenses ADD COLUMN payment_method TEXT DEFAULT 'UPI'")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+    # ==========================================
+    # USER & PROFILE OPERATIONS
+    # ==========================================
     def register_user(self, username, password):
         try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                "INSERT INTO users (username, password, budget) VALUES (?, ?, 0.0)",
-                (username, password)
-            )
+            self.cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             self.conn.commit()
             return True
         except sqlite3.IntegrityError:
             return False
 
     def login_user(self, username, password):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT * FROM users WHERE username = ? AND password = ?",
-            (username, password)
-        )
-        return cursor.fetchone()
+        self.cursor.execute("SELECT id, username FROM users WHERE username = ? AND password = ?", (username, password))
+        return self.cursor.fetchone()
 
+    def update_user_profile_pic(self, user_id, image_path):
+        self.cursor.execute("UPDATE users SET profile_pic = ? WHERE id = ?", (image_path, user_id))
+        self.conn.commit()
+
+    def get_user_profile_pic(self, user_id):
+        self.cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (user_id,))
+        res = self.cursor.fetchone()
+        return res[0] if res else None
+
+    # ==========================================
+    # BUDGET OPERATIONS
+    # ==========================================
     def set_user_budget(self, user_id, budget_amount):
-        cursor = self.conn.cursor()
-        cursor.execute("UPDATE users SET budget = ? WHERE id = ?", (budget_amount, user_id))
+        self.cursor.execute("UPDATE users SET budget = ? WHERE id = ?", (budget_amount, user_id))
         self.conn.commit()
 
     def get_user_budget(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT budget FROM users WHERE id = ?", (user_id,))
-        result = cursor.fetchone()
-        return result[0] if result and result[0] is not None else 0.0
+        self.cursor.execute("SELECT budget FROM users WHERE id = ?", (user_id,))
+        res = self.cursor.fetchone()
+        return res[0] if res and res[0] else 0.0
 
-    # ==================================================
-    # Category Budget Operations (Option 3)
-    # ==================================================
     def set_category_budget(self, user_id, category, limit_amount):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO category_budgets (user_id, category, budget_limit)
+        self.cursor.execute('''
+            INSERT INTO category_budgets (user_id, category, limit_amount)
             VALUES (?, ?, ?)
-            ON CONFLICT(user_id, category) DO UPDATE SET budget_limit = excluded.budget_limit
-            """,
-            (user_id, category, limit_amount)
-        )
+            ON CONFLICT(user_id, category) DO UPDATE SET limit_amount = excluded.limit_amount
+        ''', (user_id, category, limit_amount))
         self.conn.commit()
 
     def get_category_budgets(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT category, budget_limit FROM category_budgets WHERE user_id = ?",
-            (user_id,)
-        )
-        return dict(cursor.fetchall())
+        self.cursor.execute("SELECT category, limit_amount FROM category_budgets WHERE user_id = ?", (user_id,))
+        rows = self.cursor.fetchall()
+        return {row[0]: row[1] for row in rows}
 
     def get_category_month_spending(self, user_id, category):
-        current_month = datetime.now().strftime("%m-%Y")
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            SELECT SUM(amount) FROM expenses
-            WHERE user_id = ? AND category = ? AND date LIKE ?
-            """,
-            (user_id, category, f"%{current_month}%")
-        )
-        result = cursor.fetchone()[0]
-        return result if result else 0.0
+        self.cursor.execute('''
+            SELECT SUM(amount) FROM expenses 
+            WHERE user_id = ? AND category = ? AND strftime('%m-%Y', substr(date, 7, 4) || '-' || substr(date, 4, 2) || '-' || substr(date, 1, 2)) = strftime('%m-%Y', 'now')
+        ''', (user_id, category))
+        res = self.cursor.fetchone()
+        return res[0] if res and res[0] else 0.0
 
-    # ==================================================
-    # Expense CRUD Operations (Option 6: Payment Methods)
-    # ==================================================
+    # ==========================================
+    # EXPENSE OPERATIONS
+    # ==========================================
     def add_expense(self, user_id, amount, category, description, date, payment_method="UPI"):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
+        self.cursor.execute('''
             INSERT INTO expenses (user_id, amount, category, description, date, payment_method)
             VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (user_id, amount, category, description, date, payment_method)
-        )
+        ''', (user_id, amount, category, description, date, payment_method))
         self.conn.commit()
 
-    def get_recent_expenses(self, user_id, limit=50):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            SELECT id, amount, category, description, date, payment_method
-            FROM expenses
-            WHERE user_id = ?
-            ORDER BY date DESC, id DESC
-            LIMIT ?
-            """,
-            (user_id, limit)
-        )
-        return cursor.fetchall()
-
     def get_expense(self, expense_id):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT id, amount, category, description, date, payment_method FROM expenses WHERE id = ?",
-            (expense_id,)
-        )
-        return cursor.fetchone()
+        self.cursor.execute("SELECT id, amount, category, description, date, payment_method FROM expenses WHERE id = ?", (expense_id,))
+        return self.cursor.fetchone()
 
     def update_expense(self, expense_id, amount, category, description, date, payment_method):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            UPDATE expenses
+        self.cursor.execute('''
+            UPDATE expenses 
             SET amount = ?, category = ?, description = ?, date = ?, payment_method = ?
             WHERE id = ?
-            """,
-            (amount, category, description, date, payment_method, expense_id)
-        )
+        ''', (amount, category, description, date, payment_method, expense_id))
         self.conn.commit()
 
     def delete_expense(self, expense_id):
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+        self.cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
         self.conn.commit()
 
-    # ==================================================
-    # Date Filtering Operations (Option 1)
-    # ==================================================
-    def get_filtered_expenses(self, user_id, time_filter="All"):
-        cursor = self.conn.cursor()
-        today = datetime.now()
-
-        if time_filter == "Today":
-            date_str = today.strftime("%d-%m-%Y")
-            cursor.execute(
-                "SELECT id, amount, category, description, date, payment_method FROM expenses WHERE user_id = ? AND date = ? ORDER BY id DESC",
-                (user_id, date_str)
-            )
-        elif time_filter == "This Month":
-            month_str = today.strftime("%m-%Y")
-            cursor.execute(
-                "SELECT id, amount, category, description, date, payment_method FROM expenses WHERE user_id = ? AND date LIKE ? ORDER BY id DESC",
-                (user_id, f"%{month_str}%")
-            )
+    def get_filtered_expenses(self, user_id, filter_mode="All"):
+        if filter_mode == "Today":
+            self.cursor.execute('''
+                SELECT id, amount, category, description, date, payment_method 
+                FROM expenses WHERE user_id = ? 
+                AND strftime('%d-%m-%Y', substr(date, 7, 4) || '-' || substr(date, 4, 2) || '-' || substr(date, 1, 2)) = strftime('%d-%m-%Y', 'now')
+                ORDER BY id DESC
+            ''', (user_id,))
+        elif filter_mode == "This Month":
+            self.cursor.execute('''
+                SELECT id, amount, category, description, date, payment_method 
+                FROM expenses WHERE user_id = ? 
+                AND strftime('%m-%Y', substr(date, 7, 4) || '-' || substr(date, 4, 2) || '-' || substr(date, 1, 2)) = strftime('%m-%Y', 'now')
+                ORDER BY id DESC
+            ''', (user_id,))
         else:
-            return self.get_recent_expenses(user_id)
-
-        return cursor.fetchall()
-
-    # ==================================================
-    # Dashboard Metrics
-    # ==================================================
-    def get_total_expense(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT SUM(amount) FROM expenses WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()[0]
-        return result if result else 0.0
-
-    def get_month_expense(self, user_id):
-        current_month = datetime.now().strftime("%m-%Y")
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT SUM(amount) FROM expenses WHERE user_id = ? AND date LIKE ?",
-            (user_id, f"%{current_month}%")
-        )
-        result = cursor.fetchone()[0]
-        return result if result else 0.0
-
-    def get_total_categories(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(DISTINCT category) FROM expenses WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()[0]
-        return result if result else 0
+            self.cursor.execute('''
+                SELECT id, amount, category, description, date, payment_method 
+                FROM expenses WHERE user_id = ? ORDER BY id DESC
+            ''', (user_id,))
+        return self.cursor.fetchall()
 
     def search_expenses(self, user_id, query):
-        cursor = self.conn.cursor()
-        search_pattern = f"%{query}%"
-        cursor.execute(
-            """
-            SELECT id, amount, category, description, date, payment_method
-            FROM expenses
+        q = f"%{query}%"
+        self.cursor.execute('''
+            SELECT id, amount, category, description, date, payment_method 
+            FROM expenses 
             WHERE user_id = ? AND (category LIKE ? OR description LIKE ? OR payment_method LIKE ?)
-            ORDER BY date DESC, id DESC
-            """,
-            (user_id, search_pattern, search_pattern, search_pattern)
-        )
-        return cursor.fetchall()
+            ORDER BY id DESC
+        ''', (user_id, q, q, q))
+        return self.cursor.fetchall()
 
+    # ==========================================
+    # METRICS & STATS FOR ANALYTICS
+    # ==========================================
     def get_category_breakdown(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT category, SUM(amount) FROM expenses WHERE user_id = ? GROUP BY category HAVING SUM(amount) > 0",
-            (user_id,)
-        )
-        return cursor.fetchall()
+        self.cursor.execute('''
+            SELECT category, SUM(amount) 
+            FROM expenses 
+            WHERE user_id = ? 
+            GROUP BY category
+        ''', (user_id,))
+        rows = self.cursor.fetchall()
+        return {row[0]: row[1] for row in rows}
 
-    def get_monthly_spending(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT strftime('%Y-%m', date) as month, SUM(amount) FROM expenses WHERE user_id = ? GROUP BY month ORDER BY month ASC",
-            (user_id,)
-        )
-        rows = cursor.fetchall()
-        return {row[0]: row[1] for row in rows if row[0] is not None}
+    def get_total_expense(self, user_id):
+        self.cursor.execute("SELECT SUM(amount) FROM expenses WHERE user_id = ?", (user_id,))
+        res = self.cursor.fetchone()
+        return res[0] if res and res[0] else 0.0
 
-    def get_all_user_expenses(self, user_id):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT date, category, description, amount, payment_method FROM expenses WHERE user_id = ? ORDER BY id DESC",
-            (user_id,)
-        )
-        return cursor.fetchall()
+    def get_month_expense(self, user_id):
+        self.cursor.execute('''
+            SELECT SUM(amount) FROM expenses 
+            WHERE user_id = ? 
+            AND strftime('%m-%Y', substr(date, 7, 4) || '-' || substr(date, 4, 2) || '-' || substr(date, 1, 2)) = strftime('%m-%Y', 'now')
+        ''', (user_id,))
+        res = self.cursor.fetchone()
+        return res[0] if res and res[0] else 0.0
+
+    def get_total_categories(self, user_id):
+        self.cursor.execute("SELECT COUNT(DISTINCT category) FROM expenses WHERE user_id = ?", (user_id,))
+        res = self.cursor.fetchone()
+        return res[0] if res else 0

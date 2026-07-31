@@ -1,144 +1,190 @@
 import customtkinter as ctk
+from tkinter import messagebox, filedialog
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from exporter import DataExporter
+import csv
 
 
 class AnalyticsPage:
 
-    def __init__(self, app, user):
-        self.app = app
+    def __init__(self, parent, user):
+        self.app = parent
         self.user = user
+        self.is_destroyed = False
 
-        # Popup Window Setup
-        self.window = ctk.CTkToplevel(app)
-        self.window.title("📊 Financial Analytics & Insights")
-        self.window.geometry("850x600")
+        # Window Setup
+        self.window = ctk.CTkToplevel(parent)
+        self.window.title("Financial Analytics & Insights")
+        self.window.geometry("750x650")
         self.window.grab_set()
-
-        # Handle window close protocol gracefully to prevent bgerror/memory leaks
+        
+        # Handle graceful close
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Title
-        title = ctk.CTkLabel(
+        # Title Header
+        ctk.CTkLabel(
             self.window,
             text="📊 Expense Analytics",
-            font=("Arial", 24, "bold")
-        )
-        title.pack(pady=(15, 5))
+            font=("Arial", 20, "bold")
+        ).pack(pady=(15, 10))
 
-        # Export Buttons Frame
-        self.export_frame = ctk.CTkFrame(self.window, fg_color="transparent")
-        self.export_frame.pack(pady=5)
+        # Top Export Bar
+        export_frame = ctk.CTkFrame(self.window, fg_color="transparent")
+        export_frame.pack(fill="x", padx=20, pady=(0, 10))
 
-        self.csv_btn = ctk.CTkButton(
-            self.export_frame,
+        ctk.CTkButton(
+            export_frame,
             text="📄 Export CSV",
-            width=140,
-            height=32,
-            fg_color="#27ae60",
-            hover_color="#1e8449",
+            fg_color="#10b981",
+            hover_color="#059669",
             command=self.export_csv
-        )
-        self.csv_btn.grid(row=0, column=0, padx=10)
+        ).pack(side="left", padx=10)
 
-        self.pdf_btn = ctk.CTkButton(
-            self.export_frame,
+        ctk.CTkButton(
+            export_frame,
             text="📕 Export PDF Report",
-            width=140,
-            height=32,
-            fg_color="#c0392b",
-            hover_color="#962d22",
+            fg_color="#ef4444",
+            hover_color="#dc2626",
             command=self.export_pdf
-        )
-        self.pdf_btn.grid(row=0, column=1, padx=10)
+        ).pack(side="right", padx=10)
 
-        # Main Scrollable Frame for Charts
-        self.charts_frame = ctk.CTkScrollableFrame(self.window)
-        self.charts_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        # Matplotlib Dark Theme
-        plt.style.use("dark_background")
+        # Scrollable Frame for Charts
+        self.scroll_frame = ctk.CTkScrollableFrame(self.window, corner_radius=12)
+        self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
 
         # Render Charts
         self.render_charts()
 
+    def on_close(self):
+        self.is_destroyed = True
+        plt.close("all")
+        self.window.destroy()
+
     def render_charts(self):
-        user_id = self.user[0]
-
-        category_data = self.app.db.get_category_breakdown(user_id)
-        monthly_data = self.app.db.get_monthly_spending(user_id)
-
-        if not category_data and not monthly_data:
-            no_data_label = ctk.CTkLabel(
-                self.charts_frame,
-                text="No expenses recorded yet. Add some expenses to view charts!",
-                font=("Arial", 16)
-            )
-            no_data_label.pack(pady=50)
+        if self.is_destroyed:
             return
 
-        grid_frame = ctk.CTkFrame(self.charts_frame, fg_color="transparent")
-        grid_frame.pack(fill="both", expand=True)
+        # Safely fetch category breakdown from DB
+        if hasattr(self.app.db, "get_category_breakdown"):
+            category_data = self.app.db.get_category_breakdown(self.user[0])
+        else:
+            expenses = self.app.db.get_filtered_expenses(self.user[0], "All")
+            category_data = {}
+            for exp in expenses:
+                category_data[exp[2]] = category_data.get(exp[2], 0.0) + exp[1]
 
-        # Chart 1: Category Breakdown (Pie Chart)
-        if category_data:
-            categories = [item[0] for item in category_data]
-            amounts = [item[1] for item in category_data]
+        if not category_data:
+            ctk.CTkLabel(
+                self.scroll_frame,
+                text="No expense data available to display charts.",
+                font=("Arial", 14),
+                text_color="#a1a1aa"
+            ).pack(pady=50)
+            return
 
-            fig1, ax1 = plt.subplots(figsize=(4.2, 3.6), dpi=100)
-            fig1.patch.set_facecolor('#2b2b2b')
-            ax1.set_facecolor('#2b2b2b')
+        categories = list(category_data.keys())
+        amounts = list(category_data.values())
 
-            ax1.pie(
-                amounts,
-                labels=categories,
-                autopct='%1.1f%%',
-                startangle=140,
-                textprops={'color': 'white', 'fontsize': 10}
-            )
-            ax1.set_title("Spending by Category", color="white", fontsize=14, fontweight="bold")
+        # Match Theme Background
+        mode = ctk.get_appearance_mode()
+        bg_color = "#18181b" if mode == "Dark" else "#f4f4f5"
+        text_color = "white" if mode == "Dark" else "black"
 
-            canvas1 = FigureCanvasTkAgg(fig1, master=grid_frame)
-            canvas1.draw()
-            widget1 = canvas1.get_tk_widget()
-            widget1.grid(row=0, column=0, padx=10, pady=10)
+        plt.style.use("dark_background" if mode == "Dark" else "default")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.5, 3.8), facecolor=bg_color)
 
-        # Chart 2: Monthly Spending Trend (Bar Chart)
-        if monthly_data:
-            months = list(monthly_data.keys())
-            amounts = list(monthly_data.values())
+        # 1. Pie Chart
+        colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"]
+        ax1.set_facecolor(bg_color)
+        ax1.pie(
+            amounts,
+            labels=categories,
+            autopct="%1.1f%%",
+            startangle=140,
+            colors=colors[:len(categories)],
+            textprops={"color": text_color, "fontsize": 9}
+        )
+        ax1.set_title("Category Share", color=text_color, fontsize=11, fontweight="bold")
 
-            fig2, ax2 = plt.subplots(figsize=(4.2, 3.6), dpi=100)
-            fig2.patch.set_facecolor('#2b2b2b')
-            ax2.set_facecolor('#2b2b2b')
+        # 2. Bar Chart
+        ax2.set_facecolor(bg_color)
+        ax2.bar(categories, amounts, color="#3b82f6", width=0.5)
+        ax2.set_title("Category Totals (₹)", color=text_color, fontsize=11, fontweight="bold")
+        ax2.tick_params(colors=text_color, labelsize=8)
+        plt.xticks(rotation=20)
 
-            ax2.bar(months, amounts, color="#3498db", width=0.5)
-            ax2.set_title("Monthly Spending Trend", color="white", fontsize=14, fontweight="bold")
-            ax2.set_ylabel("Amount (₹)", color="white")
-            ax2.tick_params(colors='white')
+        ax2.spines["top"].set_visible(False)
+        ax2.spines["right"].set_visible(False)
+        ax2.spines["left"].set_color("#3f3f46" if mode == "Dark" else "#e4e4e7")
+        ax2.spines["bottom"].set_color("#3f3f46" if mode == "Dark" else "#e4e4e7")
 
-            fig2.tight_layout()
+        fig.tight_layout()
 
-            canvas2 = FigureCanvasTkAgg(fig2, master=grid_frame)
-            canvas2.draw()
-            widget2 = canvas2.get_tk_widget()
-            widget2.grid(row=0, column=1, padx=10, pady=10)
+        if self.is_destroyed:
+            plt.close(fig)
+            return
 
-    # --------------------------------------------------
-    # Export Callbacks
-    # --------------------------------------------------
+        # Embed into Canvas
+        canvas = FigureCanvasTkAgg(fig, master=self.scroll_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, pady=10)
+
     def export_csv(self):
-        expenses = self.app.db.get_all_user_expenses(self.user[0])
-        DataExporter.export_to_csv(expenses)
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv")],
+            title="Save Expense Report CSV"
+        )
+        if file_path:
+            expenses = self.app.db.get_filtered_expenses(self.user[0], "All")
+            with open(file_path, mode="w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["ID", "Amount (INR)", "Category", "Description", "Date", "Payment Method"])
+                for exp in expenses:
+                    writer.writerow(exp)
+            messagebox.showinfo("Success", "CSV report exported successfully!")
 
     def export_pdf(self):
-        expenses = self.app.db.get_all_user_expenses(self.user[0])
-        DataExporter.export_to_pdf(expenses, self.user[1])
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
+        except ImportError:
+            messagebox.showerror("Error", "ReportLab missing! Run: pip install reportlab")
+            return
 
-    # --------------------------------------------------
-    # Clean Close Handler
-    # --------------------------------------------------
-    def on_close(self):
-        plt.close('all')  # Free Matplotlib figure memory
-        self.window.destroy()
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            title="Save Expense Report PDF"
+        )
+        if file_path:
+            expenses = self.app.db.get_filtered_expenses(self.user[0], "All")
+            c = canvas.Canvas(file_path, pagesize=letter)
+            c.setFont("Helvetica-Bold", 18)
+            c.drawString(50, 750, f"Expense Report - {self.user[1]}")
+            c.setFont("Helvetica", 10)
+            c.drawString(50, 735, "---------------------------------------------------------------------------------------------------")
+
+            y = 710
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(50, y, "Date")
+            c.drawString(130, y, "Category")
+            c.drawString(250, y, "Payment")
+            c.drawString(360, y, "Amount (INR)")
+            c.drawString(460, y, "Description")
+
+            y -= 20
+            c.setFont("Helvetica", 9)
+            for exp in expenses:
+                if y < 50:
+                    c.showPage()
+                    y = 750
+                c.drawString(50, y, str(exp[4]))
+                c.drawString(130, y, str(exp[2]))
+                c.drawString(250, y, str(exp[5] if len(exp) > 5 else "UPI"))
+                c.drawString(360, y, f"Rs. {exp[1]:.2f}")
+                c.drawString(460, y, str(exp[3])[:20])
+                y -= 18
+
+            c.save()
+            messagebox.showinfo("Success", "PDF report exported successfully!")
